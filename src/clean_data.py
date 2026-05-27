@@ -16,6 +16,10 @@ def load_raw_data():
 
 def clean_data(df):
     print("\n=== Data Cleaning ===")
+    if "Unnamed: 0" in df.columns:
+        df = df.drop(columns=["Unnamed: 0"])
+        print("Dropped 'Unnamed: 0' index column")
+
     print(f"Duplicates: {df.duplicated().sum()}")
     df = df.drop_duplicates()
 
@@ -39,7 +43,11 @@ def clean_data(df):
         df["explicit"] = df["explicit"].astype(int)
 
     df["duration_min"] = (df["duration_ms"] / 60000).round(2)
-    df["decade"] = (df["year"] // 10) * 10
+
+    if "year" in df.columns:
+        df["decade"] = (df["year"] // 10) * 10
+    else:
+        df["decade"] = 0
 
     print(f"\nCleaned data shape: {df.shape}")
     return df

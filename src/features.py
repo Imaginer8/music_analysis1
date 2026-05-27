@@ -27,13 +27,8 @@ def scale_features(df):
     return df, scaler
 
 def extract_year_features(df):
-    df["release_quarter"] = df["year"] % 4
-
-    if "released_month" in df.columns:
-        df["season"] = df["released_month"].map({12: 0, 1: 0, 2: 0,
-                                                  3: 1, 4: 1, 5: 1,
-                                                  6: 2, 7: 2, 8: 2,
-                                                  9: 3, 10: 3, 11: 3})
+    if "year" in df.columns:
+        df["release_quarter"] = df["year"] % 4
 
 def main():
     MODELS_DIR.mkdir(parents=True, exist_ok=True)

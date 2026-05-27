@@ -17,6 +17,15 @@ class MusicRecommender:
         self.df = pd.read_parquet(PROCESSED_DIR / "clustered.parquet")
         self.scaler = joblib.load(MODELS_DIR / "scaler.pkl")
         self.feature_matrix = self.scaler.transform(self.df[AUDIO_FEATURES].values)
+        self.has_year = "year" in self.df.columns
+
+    def _result_cols(self, extra=None):
+        base = ["track_name", "artists", "genre"]
+        if self.has_year:
+            base.append("year")
+        if extra:
+            base.extend(extra)
+        return base
 
     def recommend_by_track(self, track_name, n=10, genre_filter=None,
                            decade_filter=None, popularity_weight=0.3):
@@ -38,8 +47,9 @@ class MusicRecommender:
             "decade": self.df["decade"].values,
             "track_name": self.df["track_name"].values,
             "artists": self.df["artists"].values,
-            "year": self.df["year"].values,
         })
+        if self.has_year:
+            candidates["year"] = self.df["year"].values
 
         candidates = candidates[candidates.index != idx]
 
@@ -57,8 +67,7 @@ class MusicRecommender:
                               + popularity_weight * pop_norm
 
         results = candidates.sort_values("score", ascending=False).head(n)
-        return results[["track_name", "artists", "genre", "year",
-                        "popularity", "similarity", "score"]]
+        return results[self._result_cols(["popularity", "similarity", "score"])]
 
     def recommend_by_features(self, features, n=10, genre_filter=None):
         query = np.array([features.get(f, 0) for f in AUDIO_FEATURES]).reshape(1, -1)
@@ -71,8 +80,9 @@ class MusicRecommender:
             "genre": self.df["track_genre"].values,
             "track_name": self.df["track_name"].values,
             "artists": self.df["artists"].values,
-            "year": self.df["year"].values,
         })
+        if self.has_year:
+            candidates["year"] = self.df["year"].values
 
         if genre_filter and genre_filter != "All":
             candidates = candidates[candidates["genre"] == genre_filter]
@@ -85,16 +95,21 @@ class MusicRecommender:
         candidates["score"] = 0.7 * candidates["similarity"] + 0.3 * pop_norm
 
         results = candidates.sort_values("score", ascending=False).head(n)
-        return results[["track_name", "artists", "genre", "year",
-                        "popularity", "similarity", "score"]]
+        return results[self._result_cols(["popularity", "similarity", "score"])]
 
     def recommend_by_genre(self, genre, n=10, min_popularity=30):
         pool = self.df[(self.df["track_genre"] == genre) &
                        (self.df["popularity"] >= min_popularity)]
         results = pool.sort_values("popularity", ascending=False).head(n)
-        return results[["track_name", "artists", "year", "popularity"]]
+        cols = ["track_name", "artists", "track_genre", "popularity"]
+        if self.has_year:
+            cols.append("year")
+        return results[cols]
 
     def search_tracks(self, query, n=20):
         mask = self.df["track_name"].str.lower().str.contains(query.lower(), na=False)
         results = self.df[mask].sort_values("popularity", ascending=False).head(n)
-        return results[["track_name", "artists", "track_genre", "year", "popularity"]]
+        cols = ["track_name", "artists", "track_genre", "popularity"]
+        if self.has_year:
+            cols.append("year")
+        return results[cols]
